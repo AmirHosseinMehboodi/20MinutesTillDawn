@@ -11,7 +11,7 @@ public class User {
     private int score = 0;
     private int kills = 0;
     private int survive = 0;
-    private Image costumeAvatar;
+    private Image costumeAvatar = null;
 
     public User(String name, String password, int questionNumber, String answer,  int avatarNumber) {
 

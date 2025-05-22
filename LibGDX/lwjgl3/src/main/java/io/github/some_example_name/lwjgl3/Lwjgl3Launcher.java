@@ -3,9 +3,15 @@ package io.github.some_example_name.lwjgl3;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3Application;
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3ApplicationConfiguration;
+import com.badlogic.gdx.backends.lwjgl3.Lwjgl3Graphics;
 import io.github.some_example_name.Controller.ProfileMenuController;
 import io.github.some_example_name.Main;
+import io.github.some_example_name.View.ProfileMenu;
 import org.lwjgl.glfw.GLFWDropCallback;
+
+import java.util.Arrays;
+
+import static org.lwjgl.glfw.GLFW.glfwSetDropCallback;
 
 /** Launches the desktop (LWJGL3) application. */
 public class Lwjgl3Launcher {
@@ -15,24 +21,38 @@ public class Lwjgl3Launcher {
     }
 
     private static Lwjgl3Application createApplication() {
+        return new Lwjgl3Application(new Main() {
+            @Override
+            public void create() {
+                super.create();
+                // Set up drag and drop after the application is created
+                setupDragAndDrop();
+            }
+        }, getDefaultConfiguration());
+    }
 
-        return new Lwjgl3Application(new Main(), getDefaultConfiguration());
-//        Gdx.app.postRunnable(() -> {
-//            long windowHandle = ((com.badlogic.gdx.backends.lwjgl3.Lwjgl3Graphics) Gdx.graphics).getWindow().getWindowHandle();
-//
-//            GLFWDropCallback callback = new GLFWDropCallback() {
-//                @Override
-//                public void invoke(long window, int count, long names) {
-//                    String[] paths = new String[count];
-//                    for (int i = 0; i < count; i++) {
-//                        paths[i] = GLFWDropCallback.getName(names, i);
-//                    }
-//                    ProfileMenuController.filesDropped(paths); // Call your game's file handler
-//                }
-//            };
-//            org.lwjgl.glfw.GLFW.glfwSetDropCallback(windowHandle, callback);
-//        });
+    private static void setupDragAndDrop() {
+        // Get the window handle from LibGDX
+        Lwjgl3Graphics graphics = (Lwjgl3Graphics) Gdx.graphics;
+        long windowHandle = graphics.getWindow().getWindowHandle();
 
+        // Create and set the drop callback
+        GLFWDropCallback dropCallback = new GLFWDropCallback() {
+            @Override
+            public void invoke(long window, int count, long names) {
+                // Convert the native string array to Java strings
+                String[] files = new String[count];
+                for (int i = 0; i < count; i++) {
+                    files[i] = GLFWDropCallback.getName(names, i);
+                }
+
+                // Call your existing method
+                ProfileMenuController.filesDropped(files);
+            }
+        };
+
+        // Set the callback on your window
+        glfwSetDropCallback(windowHandle, dropCallback);
     }
 
     private static Lwjgl3ApplicationConfiguration getDefaultConfiguration() {
@@ -47,9 +67,6 @@ public class Lwjgl3Launcher {
         //// If you remove the above line and set Vsync to false, you can get unlimited FPS, which can be
         //// useful for testing performance, but can also be very stressful to some hardware.
         //// You may also need to configure GPU drivers to fully disable Vsync; this can cause screen tearing.
-
-
-
 
         configuration.setWindowedMode(1920, 1080);
 //        configuration.setFullscreenMode(Lwjgl3ApplicationConfiguration.getDisplayMode());

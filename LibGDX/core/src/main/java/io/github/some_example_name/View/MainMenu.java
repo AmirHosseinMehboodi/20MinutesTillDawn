@@ -89,7 +89,11 @@ public class MainMenu implements Screen {
                 image = new Image(new Texture(Gdx.files.internal("Texture2D/T_Scarlett_Portrait.png")));
         }
 
-        this.avatar = image;
+        if(App.getCurrentUser().getCostumeAvatar() != null){
+            this.avatar = App.getCurrentUser().getCostumeAvatar();
+        } else {
+            this.avatar = image;
+        }
         this.backgroundAvatar = new Image(new Texture(Gdx.files.internal("Texture2D/T_UIPanel.png")));
         this.username = new Label(App.getCurrentUser().getName(), skin);
         this.score = new Label("score: " + App.getCurrentUser().getScore(), skin);
