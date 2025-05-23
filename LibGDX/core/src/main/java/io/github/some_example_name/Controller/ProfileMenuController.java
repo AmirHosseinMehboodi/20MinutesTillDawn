@@ -8,6 +8,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.Image;
 import io.github.some_example_name.Main;
 import io.github.some_example_name.Model.App;
 import io.github.some_example_name.Model.DatabaseManager;
+import io.github.some_example_name.Model.User;
 import io.github.some_example_name.View.LoginMenu;
 import io.github.some_example_name.View.MainMenu;
 import io.github.some_example_name.View.ProfileMenu;
@@ -17,6 +18,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.lang.ModuleLayer;
 import java.util.Arrays;
+import java.util.regex.Pattern;
 
 public class ProfileMenuController {
     public static String handleButton (ProfileMenu menu) {
@@ -25,7 +27,7 @@ public class ProfileMenuController {
         }
 
         if (menu.getDeleteAccount().isPressed()) {
-            if (App.getCurrentUser().equals("guest")) {
+            if (App.getCurrentUser().getName().equals("guest")) {
                 return null;
             }
             Main.getMain().setScreen(new LoginMenu(false));
@@ -40,7 +42,37 @@ public class ProfileMenuController {
             }
             App.getCurrentUser().setAvatarNumber(menu.getButtonGroup().getCheckedIndex());
         }
-        
+
+        if(menu.getChangeUser().isPressed()) {
+            if(App.getCurrentUser().getName().equals("guest")) {
+                return null;
+            }
+
+            for(User user : App.getUsers()) {
+                if(menu.getUsername().getText().equals(user.getName())) {
+                    return "Username is already taken";
+                }
+            }
+
+            App.getCurrentUser().setName(menu.getUsername().getText());
+            DatabaseManager.getInstance().updateUser(App.getCurrentUser());
+            return "Username successfully changed";
+        }
+
+        if(menu.getChangePassword().isPressed()) {
+            if(App.getCurrentUser().getName().equals("guest")) {
+                return null;
+            }
+
+            if(!Pattern.compile("(?=.*[A-Z])(?=.*[0-9])(?=.*[_()*&%$#@])[A-Za-z0-9_()*&%$#@]{8,}").matcher(menu.getPassword().getText()).matches()) {
+                return "Weak Password!";
+            }
+
+            App.getCurrentUser().setPassword(menu.getPassword().getText());
+            DatabaseManager.getInstance().updateUser(App.getCurrentUser());
+            return "Password successfully changed";
+        }
+
         return null;
     }
 
