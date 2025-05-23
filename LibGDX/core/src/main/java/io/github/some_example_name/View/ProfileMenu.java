@@ -217,7 +217,7 @@ public class ProfileMenu implements Screen {
         Table table = new Table();
         table.setFillParent(true);
         table.center();
-        table.setPosition(0,-100);
+        table.setPosition(-400,400);
         table.add(error);
         stage.addActor(table);
 
