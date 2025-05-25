@@ -11,6 +11,7 @@ import com.badlogic.gdx.graphics.g2d.freetype.FreeType;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.utils.Array;
+import com.badlogic.gdx.utils.Timer;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
 import io.github.some_example_name.Model.*;
@@ -19,7 +20,7 @@ import java.awt.*;
 import java.util.ArrayList;
 
 public class GameScreen implements Screen {
-    private final io.github.some_example_name.Model.Game game;
+    private final Game game;
     private OrthographicCamera camera;
     private Viewport viewport;
     private SpriteBatch batch;
@@ -29,6 +30,10 @@ public class GameScreen implements Screen {
     private ArrayList<Enemy> enemies;
     private ArrayList<Bullet> bullets;
     private ArrayList<Pickup> pickups;
+    private ArrayList<EnemyBullet> enemyBullets = new ArrayList<>();
+    private Gun playerGun;
+    private Vector2 currentShootDirection;
+    private Vector2 mouseWorldPos;
 
     private float gameTimer;
     private static final float GAME_DURATION = 20 * 60f; // 20 minutes in seconds
@@ -46,8 +51,12 @@ public class GameScreen implements Screen {
 
         // Initialize game objects
         ArrayList<Texture> temp = new ArrayList<>();
+        int health = 0;
+        int speed = 0;
         switch (game.getHero()){
             case "SHANA":
+                health = 4;
+                speed = 4;
                 temp.add(new Texture(Gdx.files.internal("Sprite/Idle_0 #8330.png")));
                 temp.add(new Texture(Gdx.files.internal("Sprite/Idle_1 #8360.png")));
                 temp.add(new Texture(Gdx.files.internal("Sprite/Idle_2 #8819.png")));
@@ -60,6 +69,8 @@ public class GameScreen implements Screen {
                 temp.add(new Texture(Gdx.files.internal("Sprite/run_3 #8349.png")));
                 break;
             case "DIAMOND":
+                health = 7;
+                speed = 1;
                 temp.add(new Texture(Gdx.files.internal("Sprite/Idle_0 #8328.png")));
                 temp.add(new Texture(Gdx.files.internal("Sprite/Idle_1 #8358.png")));
                 temp.add(new Texture(Gdx.files.internal("Sprite/Idle_2 #8817.png")));
@@ -72,6 +83,8 @@ public class GameScreen implements Screen {
                 temp.add(new Texture(Gdx.files.internal("Sprite/run_3 #8347.png")));
                 break;
             case "DASHER":
+                health = 2;
+                speed = 10;
                 temp.add(new Texture(Gdx.files.internal("Sprite/Idle_0 #8325.png")));
                 temp.add(new Texture(Gdx.files.internal("Sprite/Idle_1 #8355.png")));
                 temp.add(new Texture(Gdx.files.internal("Sprite/Idle_2 #8814.png")));
@@ -84,6 +97,8 @@ public class GameScreen implements Screen {
                 temp.add(new Texture(Gdx.files.internal("Sprite/run_3 #8344.png")));
                 break;
             case "LILITH":
+                health = 5;
+                speed = 3;
                 temp.add(new Texture(Gdx.files.internal("Sprite/Idle_0 #8333.png")));
                 temp.add(new Texture(Gdx.files.internal("Sprite/Idle_1 #8363.png")));
                 temp.add(new Texture(Gdx.files.internal("Sprite/Idle_2 #8822.png")));
@@ -96,6 +111,8 @@ public class GameScreen implements Screen {
                 temp.add(new Texture(Gdx.files.internal("Sprite/run_3 #8352.png")));
                 break;
             case "SCARLET":
+                health = 3;
+                speed = 5;
                 temp.add(new Texture(Gdx.files.internal("Sprite/Idle_0 #8327.png")));
                 temp.add(new Texture(Gdx.files.internal("Sprite/Idle_1 #8357.png")));
                 temp.add(new Texture(Gdx.files.internal("Sprite/Idle_2 #8816.png")));
@@ -110,10 +127,48 @@ public class GameScreen implements Screen {
         }
 
 
-        player = new Player(960, 540 , temp); // Center of screen
+        player = new Player(960, 540 , temp, health,speed); // Center of screen
         enemies = new ArrayList<>();
         bullets = new ArrayList<>();
         pickups = new ArrayList<>();
+
+        Texture gunTexture = null;
+
+        int damage = 0;
+        int projectile = 0;
+        int timeReload = 0;
+        int ammoMax = 0;
+        switch (game.getGun()){
+            case "REVOLVER":
+                damage = 20;
+                projectile = 1;
+                timeReload = 1;
+                ammoMax = 6;
+                gunTexture = new Texture(Gdx.files.internal("Sprite/RevolverStill.png"));
+                break;
+            case "SHOTGUN":
+                damage = 10;
+                projectile = 4;
+                timeReload = 1;
+                ammoMax = 2;
+                gunTexture = new Texture(Gdx.files.internal("Sprite/T_Shotgun_SS_0.png"));
+                break;
+            case "SMGs DUAL":
+                damage = 8;
+                projectile = 1;
+                timeReload = 2;
+                ammoMax = 24;
+                gunTexture = new Texture(Gdx.files.internal("Sprite/SMGStill.png"));
+                break;
+        }
+
+        playerGun = new Gun(gunTexture, 20f, damage, projectile, timeReload, ammoMax);
+        currentShootDirection = new Vector2(1, 0);
+        mouseWorldPos = new Vector2();
+
+
+        player.setGun(playerGun);
+
 
         enemySpawner = new EnemySpawner();
         collisionManager = new CollisionManger();
@@ -152,7 +207,11 @@ public class GameScreen implements Screen {
         // Update enemies
         for (int i = enemies.size() - 1; i >= 0; i--) {
             Enemy enemy = enemies.get(i);
-            enemy.update(delta, player.getPosition());
+            EnemyBullet newBullet = enemy.update(delta, player.getPosition());
+
+            if (newBullet != null) {
+                enemyBullets.add(newBullet); // Add bullet to your bullet list
+            }
 
             if (enemy.isDead()) {
                 // Drop pickup chance
@@ -161,13 +220,49 @@ public class GameScreen implements Screen {
             }
         }
 
+        if (!enemies.isEmpty()) {
+            Enemy nearest = findNearestEnemy();
+            if (nearest != null) {
+                Vector2 shootDirection = new Vector2(nearest.getPosition()).sub(player.getPosition()).nor();
+                currentShootDirection = shootDirection;
+            } else {
+                Vector3 mouseScreen = new Vector3(Gdx.input.getX(), Gdx.input.getY(), 0);
+                camera.unproject(mouseScreen);
+                Vector2 shootDirection = new Vector2(mouseScreen.x, mouseScreen.y).sub(player.getPosition()).nor();
+                if(player.canShoot()){
+                    currentShootDirection = shootDirection;
+                }
+            }
+        }
+
+        playerGun.update(delta,player.getPosition(), currentShootDirection);
+
         // Update bullets
         for (int i = bullets.size() - 1; i >= 0; i--) {
             Bullet bullet = bullets.get(i);
+            if(bullets.get(i) == null){
+                System.out.println(i);
+            }
             bullet.update(delta);
 
             if (bullet.isOffScreen() || bullet.shouldRemove()) {
                 bullets.remove(i);
+            }
+        }
+
+        for (int i = enemyBullets.size() - 1; i >= 0; i--) {
+            EnemyBullet bullet = enemyBullets.get(i);
+            bullet.update(delta);
+
+            // Check if bullet hit player
+            if (bullet.checkCollision(player.getPosition(), 16f)) {
+                player.takeDamage((int)bullet.getDamage());
+                bullet.deactivate();
+            }
+
+            // Remove inactive bullets
+            if (!bullet.isActive()) {
+                enemyBullets.remove(i);
             }
         }
 
@@ -216,15 +311,30 @@ public class GameScreen implements Screen {
                 Enemy nearest = findNearestEnemy();
                 if (nearest != null) {
                     Vector2 shootDirection = new Vector2(nearest.getPosition()).sub(player.getPosition()).nor();
-                    if (player.canShoot()) {
-                        bullets.add(player.shoot(shootDirection));
+                    if (player.canShoot() && playerGun.getAmmo() > 0 && !playerGun.isReloading()) {
+                        bullets.addAll(player.shoot(shootDirection));
+
+                        playerGun.shoots();
+                        if(playerGun.getAmmo() == 0 && App.isAutoReload()){
+                            playerGun.setReloading(true);
+                            Timer.schedule(playerGun.getReloadTimeTask(),playerGun.getTimeReload());
+                        }
+
                     }
                 } else {
                     Vector3 mouseScreen = new Vector3(Gdx.input.getX(), Gdx.input.getY(), 0);
                     camera.unproject(mouseScreen);
                     Vector2 shootDirection = new Vector2(mouseScreen.x, mouseScreen.y).sub(player.getPosition()).nor();
-                    if(player.canShoot()){
-                        bullets.add(player.shoot(shootDirection));
+                    if (player.canShoot() && playerGun.getAmmo() > 0 && !playerGun.isReloading()) {
+                        bullets.addAll(player.shoot(shootDirection));
+
+
+                        playerGun.shoots();
+                        if(playerGun.getAmmo() == 0 && App.isAutoReload()){
+                            playerGun.setReloading(true);
+                            Timer.schedule(playerGun.getReloadTimeTask(),playerGun.getTimeReload());
+                        }
+
                     }
                 }
             }
@@ -263,6 +373,13 @@ public class GameScreen implements Screen {
 
         for (Enemy enemy : enemies) {
             enemy.draw(batch);
+        }
+
+
+        playerGun.draw(batch);
+
+        for (EnemyBullet bullet : enemyBullets) {
+            bullet.draw(batch);
         }
 
         for (Bullet bullet : bullets) {
@@ -313,7 +430,7 @@ public class GameScreen implements Screen {
         float timeLeft = maxTime - gameTime;
         int minutes = (int)(timeLeft / 60);
         int seconds = (int)(timeLeft % 60);
-        font.draw(batch, String.format("Time: %02d:%02d", minutes, seconds), 10, 100);
+        font.draw(batch, String.format("Time: %02d:%02d\nammo: %d", minutes, seconds, playerGun.getAmmo()), 10, 100);
 
         batch.end();
     }

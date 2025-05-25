@@ -12,17 +12,18 @@ public class Player {
     private User user;
     private Vector2 position;
     private Vector2 movement;
-    private float speed = 300f;
-    private int health = 100;
-    private int maxHealth = 100;
+    private float speed;
+    private int health;
+    private int maxHealth;
+    private Gun gun;
 
     private float shootTimer = 0f;
     private float shootCooldown = 0.2f;
 
     // Stats that can be upgraded
-    private float damage = 10f;
-    private float range = 400f;
-    private float bulletSpeed = 800f;
+    private float damage = 0;
+    private float range = 1000f;
+    private float bulletSpeed = 1000f;
 
     // Animation variables
     private Animation<TextureRegion> idleAnimation;
@@ -31,9 +32,11 @@ public class Player {
     private boolean isMoving = false;
     private boolean facingLeft = false;
 
-    public Player(float x, float y, ArrayList<Texture> textures) {
+    public Player(float x, float y, ArrayList<Texture> textures, int health, int speed) {
         position = new Vector2(x, y);
         movement = new Vector2();
+        this.health = health;
+        this.speed = 100 * speed;
 
         // Initialize animations
         initializeAnimations(textures);
@@ -98,10 +101,37 @@ public class Player {
         return shootTimer <= 0;
     }
 
-    public Bullet shoot(Vector2 direction) {
+    public ArrayList<Bullet> shoot(Vector2 direction) {
         if (canShoot()) {
             shootTimer = shootCooldown;
-            return new Bullet(new Vector2(position), direction, bulletSpeed, damage, range);
+            ArrayList<Bullet> shot = new ArrayList<>();
+
+            int projectileCount = gun.getProjectile();
+
+            if (projectileCount == 1) {
+                // Fire straight with no spread
+                shot.add(new Bullet(new Vector2(gun.getPosition()), new Vector2(direction).nor(), bulletSpeed, gun.getDamage(), range));
+            } else {
+                // Spread angle in degrees
+                float spreadAngle = 20f;
+
+                // Angle between each bullet
+                float angleStep = spreadAngle / (projectileCount - 1);
+
+                // Convert base direction to angle
+                float baseAngle = direction.angleDeg();
+
+                for (int i = 0; i < projectileCount; i++) {
+                    float offset = -spreadAngle / 2 + i * angleStep;
+
+                    // Rotate direction
+                    Vector2 spreadDir = new Vector2(1, 0).setAngleDeg(baseAngle + offset).nor();
+
+                    shot.add(new Bullet(new Vector2(gun.getPosition()), spreadDir, bulletSpeed, gun.getDamage(), range));
+                }
+            }
+            
+            return shot;
         }
         return null;
     }
@@ -159,4 +189,7 @@ public class Player {
     public int getMaxHealth() { return maxHealth; }
     public float getDamage() { return damage; }
     public boolean isMoving() { return isMoving; }
+    public void setGun(Gun gun) {
+        this.gun = gun;
+    }
 }

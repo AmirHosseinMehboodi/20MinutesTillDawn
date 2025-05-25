@@ -32,7 +32,7 @@ public class Bullet {
 
     public void draw(SpriteBatch batch) {
         // Draw bullet
-         batch.draw(new Texture("Sprite/T_ChargeUp_0.png"), position.x - 2, position.y - 2, 10, 10);
+         batch.draw(new Texture("Sprite/T_ChargeUp_0.png"), position.x - 2, position.y - 2, 15, 15);
     }
 
     public Vector2 getPosition() { return position; }
