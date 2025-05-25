@@ -38,15 +38,15 @@ public class Enemy {
         switch (type) {
             case tentacle:
                 speed = 100f;
-                health = maxHealth = 20;
-                damage = 10f;
-                shootCooldown = 0f; // Tentacle doesn't shoot
+                health = maxHealth = 25;
+                damage = 1f;
+                shootCooldown = 0f;
                 break;
             case eyebat:
-                speed = 150f; // Slightly slower since it shoots
-                health = maxHealth = 15;
-                damage = 8f;
-                shootCooldown = 1.5f;
+                speed = 75f;
+                health = maxHealth = 50;
+                damage = 1f;
+                shootCooldown = 2f;
                 break;
         }
 
@@ -71,8 +71,8 @@ public class Enemy {
         moveAnimation.setPlayMode(Animation.PlayMode.LOOP);
     }
 
-    public void update(float delta, Vector2 playerPos) {
-        if (dead) return;
+    public EnemyBullet update(float delta, Vector2 playerPos) {
+        if (dead) return null;
 
         // Update animation time
         stateTime += delta;
@@ -89,10 +89,17 @@ public class Enemy {
             facingLeft = false;
         }
 
+        EnemyBullet newBullet = null;
+        if (type == EnemyType.eyebat && canShoot(playerPos)) {
+            newBullet = shoot(playerPos);
+        }
+
         // Update shoot timer for eyebat
         if (type == EnemyType.eyebat) {
             shootTimer -= delta;
         }
+        return newBullet;
+
     }
 
     public void takeDamage(float damage) {
@@ -121,7 +128,7 @@ public class Enemy {
         shootTimer = shootCooldown;
         Vector2 direction = new Vector2(playerPos).sub(position).nor();
 
-        return new EnemyBullet(new Vector2(position), direction, bulletSpeed, damage);
+        return new EnemyBullet(new Vector2(position), direction, bulletSpeed /2, damage);
     }
 
     public void draw(SpriteBatch batch) {

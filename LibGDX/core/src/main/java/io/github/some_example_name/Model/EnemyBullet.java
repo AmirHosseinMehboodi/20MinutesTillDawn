@@ -10,7 +10,7 @@ public class EnemyBullet {
     private float damage;
     private boolean active;
     private float lifespan;
-    private float maxLifespan = 5f; // Bullet disappears after 3 seconds
+    private float maxLifespan = 5f;
 
     private Texture texture;
     private float size = 25f; // Bullet size
