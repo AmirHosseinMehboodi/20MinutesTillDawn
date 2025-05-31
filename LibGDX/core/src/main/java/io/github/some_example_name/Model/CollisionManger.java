@@ -2,6 +2,7 @@ package io.github.some_example_name.Model;
 import com.badlogic.gdx.utils.Array;
 
 import java.util.ArrayList;
+import java.util.Objects;
 
 public class CollisionManger {
     private static final float COLLISION_DISTANCE = 32f;

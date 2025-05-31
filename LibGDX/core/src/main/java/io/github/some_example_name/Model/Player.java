@@ -5,7 +5,10 @@ import com.badlogic.gdx.graphics.g2d.Animation;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.Vector2;
+import com.sun.org.apache.bcel.internal.generic.DADD;
+import io.github.some_example_name.View.GameScreen;
 
+import javax.management.ValueExp;
 import java.util.ArrayList;
 
 public class Player {
@@ -16,6 +19,9 @@ public class Player {
     private int health;
     private int maxHealth;
     private Gun gun;
+    private int xp;
+    private int level = 1;
+    private int maxXpLevel = 20;
 
     private float shootTimer = 0f;
     private float shootCooldown = 0.2f;
@@ -24,6 +30,7 @@ public class Player {
     private float damage = 0;
     private float range = 1000f;
     private float bulletSpeed = 1000f;
+    private float increaseSpeed = 0f;
 
     // Animation variables
     private Animation<TextureRegion> idleAnimation;
@@ -32,31 +39,31 @@ public class Player {
     private boolean isMoving = false;
     private boolean facingLeft = false;
 
+    private float damageCooldown = 0f;
+    private final float INVINCIBILITY_DURATION = 1f;
+
     public Player(float x, float y, ArrayList<Texture> textures, int health, int speed) {
         position = new Vector2(x, y);
         movement = new Vector2();
         this.health = health;
         this.speed = 100 * speed;
+        this.maxHealth = health;
 
         // Initialize animations
         initializeAnimations(textures);
     }
 
     private void initializeAnimations(ArrayList<Texture> textures) {
-        // Assuming the textures are ordered as:
-        // Index 0-5: Idle animation frames (6 textures)
-        // Index 6-9: Running animation frames (4 textures)
 
         if (textures.size() < 10) {
             throw new IllegalArgumentException("Need at least 10 textures: 6 for idle, 4 for running");
         }
 
-        // Create idle animation (6 frames)
         TextureRegion[] idleFrames = new TextureRegion[6];
         for (int i = 0; i < 6; i++) {
             idleFrames[i] = new TextureRegion(textures.get(i));
         }
-        idleAnimation = new Animation<TextureRegion>(0.15f, idleFrames); // 0.15 seconds per frame
+        idleAnimation = new Animation<TextureRegion>(0.15f, idleFrames);
         idleAnimation.setPlayMode(Animation.PlayMode.LOOP);
 
         // Create running animation (4 frames)
@@ -85,12 +92,26 @@ public class Player {
 
         // Update position
         if (isMoving) {
-            Vector2 vel = new Vector2(movement).nor().scl(speed * delta);
+            Vector2 vel;
+            if(increaseSpeed > 0){
+                vel = new Vector2(movement).nor().scl(2 * speed * delta);
+            } else {
+                vel = new Vector2(movement).nor().scl(speed * delta);
+            }
             position.add(vel);
         }
 
+        if(damageCooldown > 0f) {
+            damageCooldown -= delta;
+        }
+
+
         // Update timers
         shootTimer -= delta;
+
+        if(increaseSpeed > 0){
+            increaseSpeed -= delta;
+        }
     }
 
     public void setMovement(Vector2 movement) {
@@ -130,20 +151,24 @@ public class Player {
                     shot.add(new Bullet(new Vector2(gun.getPosition()), spreadDir, bulletSpeed, gun.getDamage(), range));
                 }
             }
-            
+
             return shot;
         }
         return null;
     }
 
     public void takeDamage(int damage) {
-        health -= damage;
-        if (health < 0) health = 0;
+        if (damageCooldown <= 0f) {
+            health -= damage;
+            if (health < 0) health = 0;
+            damageCooldown = INVINCIBILITY_DURATION; // start cooldown
+        }
     }
+
 
     public void heal(int amount) {
         health += amount;
-        if (health > maxHealth) health = maxHealth;
+        maxHealth += amount;
     }
 
     // Alternative draw method if you want to specify size
@@ -191,5 +216,32 @@ public class Player {
     public boolean isMoving() { return isMoving; }
     public void setGun(Gun gun) {
         this.gun = gun;
+    }
+    public void increaseXP(){
+        this.xp += 3;
+        if(xp > maxXpLevel){
+            xp = xp - maxXpLevel;
+            level++;
+            maxXpLevel = 20 * level;
+            GameScreen.getGameScreen().setAbility(true);
+        }
+    }
+
+
+    public int getXp() {
+        return xp;
+    }
+
+    public int getLevel() {
+        return level;
+    }
+
+    public int getMaxXpLevel() {
+        return maxXpLevel;
+    }
+
+
+    public void setIncreaseSpeed(float increaseSpeed) {
+        this.increaseSpeed = increaseSpeed;
     }
 }

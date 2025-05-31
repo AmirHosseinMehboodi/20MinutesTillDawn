@@ -87,18 +87,6 @@ public class PreGameMenu implements Screen {
 
         stage.addActor(background);
 
-
-//        if(hero.getSelected().equals("SHANA")) {
-//            heroShow = avatar0;
-//        } else if(hero.getSelected().equals("DIAMOND")) {
-//            heroShow = avatar1;
-//        } else if(hero.getSelected().equals("DASHER")) {
-//            heroShow = avatar2;
-//        } else if(hero.getSelected().equals("LILITH")) {
-//            heroShow = avatar3;
-//        } else if(hero.getSelected().equals("SCARLET")) {
-//            heroShow = avatar4;
-//        }
         heroShow = avatar0;
         selectedHero = "SHANA";
         heroShow.setSize(820, 900);

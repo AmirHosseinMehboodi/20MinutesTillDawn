@@ -1,28 +1,27 @@
 package io.github.some_example_name.Model;
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.math.Vector2;
 
 public class Pickup {
 
     private Vector2 position;
-    private float lifeTime = 30f; // Disappear after 30 seconds
+    private Texture texture;
 
     public Pickup(Vector2 pos) {
         position = new Vector2(pos);
+        texture = new Texture(Gdx.files.internal("Sprite/T_DiamondFilled.png"));
     }
 
-    public void update(float delta) {
-        lifeTime -= delta;
-    }
 
     public void applyEffect(Player player) {
-//        player.(25); TODO
+        player.increaseXP();
     }
 
     public void draw(SpriteBatch batch) {
-        // Draw pickup sprite based on type
+        batch.draw(texture, position.x, position.y, (float) texture.getWidth() / 16, (float) texture.getHeight() / 16);
     }
 
     public Vector2 getPosition() { return position; }
-    public boolean shouldRemove() { return lifeTime <= 0; }
 }

@@ -2,29 +2,38 @@ package io.github.some_example_name.View;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.Screen;
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
-import com.badlogic.gdx.graphics.g2d.freetype.FreeType;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.math.Vector3;
-import com.badlogic.gdx.utils.Array;
+import com.badlogic.gdx.scenes.scene2d.InputEvent;
+import com.badlogic.gdx.scenes.scene2d.Stage;
+import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
+import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.utils.Timer;
 import com.badlogic.gdx.utils.viewport.FitViewport;
+import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
 import io.github.some_example_name.Model.*;
 
-import java.awt.*;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Random;
+import java.util.Set;
 
 public class GameScreen implements Screen {
+    private static GameScreen gameScreen;
     private final Game game;
     private OrthographicCamera camera;
     private Viewport viewport;
     private SpriteBatch batch;
     private Map tileMap;
+    private boolean paused = false;
+    private boolean ability = false;
 
     private Player player;
     private ArrayList<Enemy> enemies;
@@ -34,15 +43,33 @@ public class GameScreen implements Screen {
     private Gun playerGun;
     private Vector2 currentShootDirection;
     private Vector2 mouseWorldPos;
+    private Boolean autoAim = false;
+    private Texture cursor;
+    Texture heartLost = new Texture(Gdx.files.internal("Sprite/HeartAnimation_3.png"));
+    Texture heart = new Texture(Gdx.files.internal("Sprite/HeartAnimation_0.png"));
+
+    private TextButton resume = new TextButton("Resume", GameAssetManager.getSkin());
+    private TextButton giveUp = new TextButton("Give Up", GameAssetManager.getSkin());
+    private TextButton ability1Button = new TextButton("Ability 1", GameAssetManager.getSkin());
+    private TextButton ability2Button = new TextButton("Ability 2", GameAssetManager.getSkin());
+    private TextButton ability3Button = new TextButton("Ability 3", GameAssetManager.getSkin());
+
+    int ability1 = -1;
+
+    Stage stage = new Stage(new ScreenViewport());
+    Stage stageAbility = new Stage(new ScreenViewport());
 
     private float gameTimer;
-    private static final float GAME_DURATION = 20 * 60f; // 20 minutes in seconds
+    private static float GAME_DURATION; // 20 minutes in seconds
 
     private EnemySpawner enemySpawner;
     private CollisionManger collisionManager;
 
     public GameScreen(Game game) {
+        gameScreen = this;
         this.game = game;
+        cursor  = new Texture(Gdx.files.internal("Sprite/T_CursorSprite.png"));
+        GAME_DURATION = game.getTime() * 60;
 
         // Setup camera and viewport
         camera = new OrthographicCamera();
@@ -153,7 +180,7 @@ public class GameScreen implements Screen {
                 ammoMax = 2;
                 gunTexture = new Texture(Gdx.files.internal("Sprite/T_Shotgun_SS_0.png"));
                 break;
-            case "SMGs DUAL":
+            case "SMG DUAL":
                 damage = 8;
                 projectile = 1;
                 timeReload = 2;
@@ -176,6 +203,20 @@ public class GameScreen implements Screen {
         tileMap = new Map();
 
 
+        ability1Button.setPosition(camera.position.x + 840, camera.position.y + 750);
+        ability2Button.setPosition(camera.position.x + 840, camera.position.y + 580);
+        ability3Button.setPosition(camera.position.x + 840 , camera.position.y + 410);
+        stageAbility.addActor(ability1Button);
+        stageAbility.addActor(ability2Button);
+        stageAbility.addActor(ability3Button);
+
+        resume.setPosition(camera.position.x + 840, camera.position.y + 520);
+        giveUp.setPosition(camera.position.x + 840 , camera.position.y + 400);
+        stage.addActor(resume);
+        stage.addActor(giveUp);
+
+
+
         gameTimer = 0f;
     }
 
@@ -183,9 +224,77 @@ public class GameScreen implements Screen {
     public void render(float delta) {
         update(delta);
         draw();
+        this.draw(batch, player, gameTimer, GAME_DURATION);
+        if(paused){
+            stage.act(Gdx.graphics.getDeltaTime());
+            stage.draw();
+        }
+
+        if(ability) {
+            stageAbility.act(Gdx.graphics.getDeltaTime());
+            stageAbility.draw();
+        }
     }
 
     private void update(float delta) {
+        if (paused) {
+            Gdx.input.setCursorCatched(false);
+            if(Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE) || resume.isPressed()) {
+                paused = false;
+            }
+            return;
+        }
+
+        if(ability){
+            Gdx.input.setCursorCatched(false);
+            String abilityName = "";
+
+
+            if(ability1Button.isPressed()){
+                ability1= -1;
+                abilityName = ability1Button.getText().toString();
+                ability = false;
+            }
+
+            if(ability2Button.isPressed()){
+                ability1 = -1;
+                abilityName = ability2Button.getText().toString();
+                ability = false;
+            }
+
+            if(ability3Button.isPressed()){
+                ability1 = -1;
+                abilityName = ability3Button.getText().toString();
+                ability = false;
+            }
+
+            switch (abilityName){
+                case "VITALITY":
+                    player.heal(1);
+                    break;
+                case "DAMAGER":
+                    playerGun.setIncreaseDamageTime(10f);
+                    break;
+                case "PROCREASE":
+                    playerGun.setProjectile(1);
+                    break;
+                case "AMOCREASE":
+                    playerGun.setAmmoMax(5);
+                    break;
+                case "SPEEDY":
+                    player.setIncreaseSpeed(10f);
+                    break;
+                default:
+                    break;
+            }
+
+
+            return;
+        }
+
+        Gdx.input.setCursorCatched(autoAim);
+
+
         gameTimer += delta;
 
         // Check win condition
@@ -202,7 +311,7 @@ public class GameScreen implements Screen {
         handleInput();
 
         // Spawn enemies
-        enemySpawner.update(delta, enemies, gameTimer);
+        enemySpawner.update(delta, enemies, gameTimer, this);
 
         // Update enemies
         for (int i = enemies.size() - 1; i >= 0; i--) {
@@ -214,7 +323,6 @@ public class GameScreen implements Screen {
             }
 
             if (enemy.isDead()) {
-                // Drop pickup chance
                 pickups.add(new Pickup(enemy.getPosition()));
                 enemies.remove(i);
             }
@@ -235,7 +343,7 @@ public class GameScreen implements Screen {
             }
         }
 
-        playerGun.update(delta,player.getPosition(), currentShootDirection);
+        playerGun.update(delta,player.getPosition(), currentShootDirection, autoAim, camera);
 
         // Update bullets
         for (int i = bullets.size() - 1; i >= 0; i--) {
@@ -269,15 +377,10 @@ public class GameScreen implements Screen {
         // Update pickups
         for (int i = pickups.size() - 1; i >= 0; i--) {
             Pickup pickup = pickups.get(i);
-            pickup.update(delta);
-
-            if (pickup.shouldRemove()) {
-                pickups.remove(i);
-            }
         }
 
         // Handle collisions
-        collisionManager.checkCollisions(player, enemies, bullets, pickups);
+        collisionManager.checkCollisions(player , enemies, bullets, pickups);
 
         // Check game over
         if (player.isDead()) {
@@ -306,10 +409,10 @@ public class GameScreen implements Screen {
             movement.x += 1;
         }
 
-        if(Gdx.input.isKeyPressed(Input.Keys.SPACE)) {
+        if(Gdx.input.isKeyPressed(Input.Keys.SPACE) || Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) {
             if (!enemies.isEmpty()) {
                 Enemy nearest = findNearestEnemy();
-                if (nearest != null) {
+                if (autoAim) {
                     Vector2 shootDirection = new Vector2(nearest.getPosition()).sub(player.getPosition()).nor();
                     if (player.canShoot() && playerGun.getAmmo() > 0 && !playerGun.isReloading()) {
                         bullets.addAll(player.shoot(shootDirection));
@@ -334,10 +437,30 @@ public class GameScreen implements Screen {
                             playerGun.setReloading(true);
                             Timer.schedule(playerGun.getReloadTimeTask(),playerGun.getTimeReload());
                         }
-
                     }
                 }
             }
+        }
+
+        if (Gdx.input.isKeyJustPressed(Input.Keys.SHIFT_LEFT)) {
+            autoAim = !autoAim;
+            Gdx.input.setCursorCatched(autoAim);
+        }
+
+        if (Gdx.input.isKeyPressed(Input.Keys.R)) {
+            if(!playerGun.isReloading()){
+                playerGun.setReloading(true);
+                Timer.schedule(playerGun.getReloadTimeTask(),playerGun.getTimeReload());
+            }
+        }
+
+        if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
+            paused = !paused;
+        }
+
+
+        if(giveUp.isPressed()){
+            // die TODO
         }
 
         player.setMovement(movement);
@@ -352,6 +475,9 @@ public class GameScreen implements Screen {
             if (distance < nearestDistance) {
                 nearestDistance = distance;
                 nearest = enemy;
+                if(autoAim && !paused && !ability){
+                    Gdx.input.setCursorPosition((int)enemy.getPosition().x, (int)enemy.getPosition().y);
+                }
             }
         }
 
@@ -390,6 +516,18 @@ public class GameScreen implements Screen {
             pickup.draw(batch);
         }
 
+        if(autoAim && findNearestEnemy() != null){
+            batch.draw(cursor,findNearestEnemy().getPosition().x,findNearestEnemy().getPosition().y);
+        }
+
+        if (paused) {
+            drawPauseOverlay(batch);
+        }
+
+        if(ability){
+            drawAbility(batch);
+        }
+
         batch.end();
 
         this.draw(batch, player, gameTimer, GAME_DURATION);
@@ -423,15 +561,120 @@ public class GameScreen implements Screen {
         batch.begin();
         BitmapFont font = GameAssetManager.getSkin().getFont("font");
 
-        // Draw health
-        font.draw(batch, "Health: " + player.getHealth() + "/" + player.getMaxHealth(), 10, 50);
 
+        batch.setProjectionMatrix(camera.combined);
+
+        for(int i = 0; i < player.getMaxHealth(); i++){
+            if(i < player.getHealth()){
+                batch.draw(heart, camera.position.x - 950 + 60 * i, camera.position.y + 450, 50, 60);
+            } else{
+                batch.draw(heartLost, camera.position.x - 950 + 60 * i, camera.position.y + 450, 50, 60);
+            }
+        }
+
+        batch.draw(new Texture(Gdx.files.internal("Sprite/T_AmmoIcon.png")),camera.position.x - 950, camera.position.y + 380, 30, 60);
+        font.setColor(Color.RED);
+        font.getData().setScale(1.5f);
+        font.draw(batch, String.format("%d / %d",playerGun.getAmmo(),playerGun.getAmmoMax()),camera.position.x - 890, camera.position.y + 420);
         // Draw timer
         float timeLeft = maxTime - gameTime;
         int minutes = (int)(timeLeft / 60);
         int seconds = (int)(timeLeft % 60);
-        font.draw(batch, String.format("Time: %02d:%02d\nammo: %d", minutes, seconds, playerGun.getAmmo()), 10, 100);
+        font.getData().setScale(3f);
+        font.draw(batch, String.format("%02d:%02d", minutes, seconds, playerGun.getAmmo()),camera.position.x + 750, camera.position.y + 500);
+
+        font.getData().setScale(1.5f);
+        font.draw(batch, String.format("Level %d\nxp: %d / %d", player.getLevel(),player.getXp(),player.getMaxXpLevel()),camera.position.x + 750, camera.position.y + 400);
+
 
         batch.end();
+    }
+
+    public static float getGameDuration() {
+        return GAME_DURATION;
+    }
+
+    public Player getPlayer() {
+        return player;
+    }
+
+    private void drawPauseOverlay(SpriteBatch batch) {
+        BitmapFont font = GameAssetManager.getSkin().getFont("font");
+
+        // Draw semi-transparent background
+        batch.setColor(0, 0, 0, 0.7f); // Semi-transparent black
+        // If you have a pause background texture:
+        // batch.draw(pauseBackground, camera.position.x - 400, camera.position.y - 200, 800, 400);
+
+        // Or draw a simple rectangle (you'll need to create a 1x1 white pixel texture for this)
+        Texture whitePixel = new Texture(Gdx.files.internal("Sprite/T_UIPanel.png")); // Create a 1x1 white image
+        batch.draw(whitePixel, camera.position.x - 400, camera.position.y - 200, 800, 400);
+
+        // Reset color
+        batch.setColor(1, 1, 1, 1);
+
+        // Draw pause text
+        font.setColor(Color.WHITE);
+        font.getData().setScale(2f);
+
+        // Center the text
+        String pauseText = "GAME PAUSED";
+        font.draw(batch, pauseText, camera.position.x - 200, camera.position.y + 150);
+
+        Gdx.input.setInputProcessor(stage);
+    }
+
+
+    public void drawAbility(SpriteBatch batch) {
+
+        // Draw semi-transparent background
+        batch.setColor(0, 0, 0, 0.7f); // Semi-transparent black
+        // If you have a pause background texture:
+        // batch.draw(pauseBackground, camera.position.x - 400, camera.position.y - 200, 800, 400);
+
+        // Or draw a simple rectangle (you'll need to create a 1x1 white pixel texture for this)
+        Texture whitePixel = new Texture(Gdx.files.internal("Sprite/T_UIPanel.png")); // Create a 1x1 white image
+        batch.draw(whitePixel, camera.position.x - 200, camera.position.y - 200, 400, 600);
+
+        // Reset color
+        batch.setColor(1, 1, 1, 1);
+
+        if(ability1 == -1) {
+
+            Gdx.input.setInputProcessor(stageAbility);
+            // Draw pause text
+            Random random = new Random();
+
+            Set<Integer> abilitySet = new HashSet<>();
+            while (abilitySet.size() < 3) {
+                abilitySet.add(random.nextInt(5));
+            }
+            Integer[] abilityArray = abilitySet.toArray(new Integer[0]);
+            ability1 = abilityArray[0];
+
+            String[] abilityNames = {"VITALITY", "DAMAGER", "PROCREASE", "AMOCREASE", "SPEEDY"};
+
+            ability1Button.setText(abilityNames[abilityArray[0]]);
+            ability2Button.setText(abilityNames[abilityArray[1]]);
+            ability3Button.setText(abilityNames[abilityArray[2]]);
+
+        }
+
+    }
+
+    public static GameScreen getGameScreen() {
+        return gameScreen;
+    }
+
+    public SpriteBatch getBatch() {
+        return batch;
+    }
+
+    public boolean isAbility() {
+        return ability;
+    }
+
+    public void setAbility(boolean ability) {
+        this.ability = ability;
     }
 }

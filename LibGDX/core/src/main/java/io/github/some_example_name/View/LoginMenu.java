@@ -2,9 +2,7 @@ package io.github.some_example_name.View;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.audio.Music;
-import com.badlogic.gdx.graphics.Color;
-import com.badlogic.gdx.graphics.GL20;
-import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.*;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.*;
 import com.badlogic.gdx.utils.ScreenUtils;
@@ -79,6 +77,12 @@ public class LoginMenu implements Screen {
             music.play();
             App.getUsers().add(new User("guest","0",0,"0",0));
             App.getUsers().addAll(DatabaseManager.getInstance().getAllUsers());
+            Pixmap pixmap = new Pixmap(Gdx.files.internal("Sprite/T_CursorSprite.png"));
+            int xHotspot = 0;
+            int yHotspot = 0;
+            Cursor cursor = Gdx.graphics.newCursor(pixmap, xHotspot, yHotspot);
+            Gdx.graphics.setCursor(cursor);
+            pixmap.dispose();
         }
     }
 

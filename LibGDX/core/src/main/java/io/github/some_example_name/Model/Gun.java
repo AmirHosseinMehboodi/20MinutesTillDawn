@@ -1,10 +1,14 @@
 package io.github.some_example_name.Model;
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
+import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.utils.Timer;
+import io.github.some_example_name.View.GameScreen;
 
 import java.sql.Time;
 import java.util.TimerTask;
@@ -17,6 +21,7 @@ public class Gun {
     private Texture gunTexture;
     private Vector2 shootDirection;
     private int damage;
+    private float increaseDamageTime = 0f;
     private int projectile;
     private int timeReload;
     private int ammoMax;
@@ -37,20 +42,27 @@ public class Gun {
         this.gunRotation = 0f;
         this.position = new Vector2();
         this.playerPosition = new Vector2();
-        this.shootDirection = new Vector2(1, 0); // Default facing right
+        this.shootDirection = new Vector2(1, 0);
         this.damage = damage;
         this.projectile = projectile;
         this.timeReload = timeReload;
         this.ammoMax = this.ammo = ammoMax;
     }
 
-    public void update(float delta, Vector2 playerPos, Vector2 shootDir) {
+    public void update(float delta, Vector2 playerPos, Vector2 shootDir, Boolean autoAim, OrthographicCamera camera) {
         // Update player position
         playerPosition.set(playerPos);
 
         // Always update shoot direction if provided (remove the zero check)
 
-        shootDirection.set(shootDir);
+        if(autoAim) {
+            shootDirection.set(shootDir);
+        } else{
+            Vector3 mouseScreen = new Vector3(Gdx.input.getX(), Gdx.input.getY(), 0);
+            camera.unproject(mouseScreen);
+            Vector2 shootDirect = new Vector2(mouseScreen.x, mouseScreen.y).sub(playerPos).nor();
+            shootDirection.set(shootDirect);
+        }
 
             // Normalize only if it's not zero
         if (shootDirection.len() > 0) {
@@ -68,6 +80,11 @@ public class Gun {
 
         // Rotate gun to face the shoot direction
         gunRotation = shootDirection.angleDeg();
+
+
+        if(increaseDamageTime > 0) {
+            increaseDamageTime -= delta;
+        }
     }
 
     public void draw(SpriteBatch batch) {
@@ -125,6 +142,9 @@ public class Gun {
     }
 
     public int getDamage() {
+        if (increaseDamageTime > 0) {
+            return (int) (damage * 1.25f);
+        }
         return damage;
     }
 
@@ -162,5 +182,18 @@ public class Gun {
 
     public void setReloading(boolean reloading) {
         this.reloading = reloading;
+    }
+
+    public void setIncreaseDamageTime(float increaseDamageTime) {
+        this.increaseDamageTime = increaseDamageTime;
+    }
+
+    public void setProjectile(int projectile) {
+        this.projectile += projectile;
+    }
+
+
+    public void setAmmoMax(int ammoMax) {
+        this.ammoMax += ammoMax;
     }
 }
