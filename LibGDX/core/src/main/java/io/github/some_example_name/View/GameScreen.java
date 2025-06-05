@@ -10,14 +10,15 @@ import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.math.Vector3;
-import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Stage;
+import com.badlogic.gdx.scenes.scene2d.ui.Label;
+import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
-import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.utils.Timer;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
+import io.github.some_example_name.Main;
 import io.github.some_example_name.Model.*;
 
 import java.util.ArrayList;
@@ -34,6 +35,8 @@ public class GameScreen implements Screen {
     private Map tileMap;
     private boolean paused = false;
     private boolean ability = false;
+    private boolean lost = false;
+    private boolean win = false;
 
     private Player player;
     private ArrayList<Enemy> enemies;
@@ -50,6 +53,10 @@ public class GameScreen implements Screen {
 
     private TextButton resume = new TextButton("Resume", GameAssetManager.getSkin());
     private TextButton giveUp = new TextButton("Give Up", GameAssetManager.getSkin());
+
+    private TextButton tryAgain = new TextButton("Try Again", GameAssetManager.getSkin());
+    private TextButton backToMenu = new TextButton("Main Menu", GameAssetManager.getSkin());
+
     private TextButton ability1Button = new TextButton("Ability 1", GameAssetManager.getSkin());
     private TextButton ability2Button = new TextButton("Ability 2", GameAssetManager.getSkin());
     private TextButton ability3Button = new TextButton("Ability 3", GameAssetManager.getSkin());
@@ -58,6 +65,7 @@ public class GameScreen implements Screen {
 
     Stage stage = new Stage(new ScreenViewport());
     Stage stageAbility = new Stage(new ScreenViewport());
+    Stage stageEndGame = new Stage(new ScreenViewport());
 
     private float gameTimer;
     private static float GAME_DURATION; // 20 minutes in seconds
@@ -215,6 +223,10 @@ public class GameScreen implements Screen {
         stage.addActor(resume);
         stage.addActor(giveUp);
 
+        tryAgain.setPosition(camera.position.x + 820, camera.position.y + 350);
+        backToMenu.setPosition(camera.position.x + 810, camera.position.y + 210);
+        stageEndGame.addActor(tryAgain);
+        stageEndGame.addActor(backToMenu);
 
 
         gameTimer = 0f;
@@ -225,6 +237,13 @@ public class GameScreen implements Screen {
         update(delta);
         draw();
         this.draw(batch, player, gameTimer, GAME_DURATION);
+
+        if(lost || win){
+            stageEndGame.act(Gdx.graphics.getDeltaTime());
+            stageEndGame.draw();
+            return;
+        }
+
         if(paused){
             stage.act(Gdx.graphics.getDeltaTime());
             stage.draw();
@@ -237,10 +256,42 @@ public class GameScreen implements Screen {
     }
 
     private void update(float delta) {
+        if(lost || win){
+            Gdx.input.setCursorCatched(false);
+            if(backToMenu.isPressed()) {
+                player.getUser().setKills(player.getUser().getKills() + player.getKills());
+                player.getUser().setScore(player.getUser().getScore() + ((int)gameTimer * player.getKills()));
+                player.getUser().setSurvive(player.getUser().getSurvive() + (int)gameTimer);
+                DatabaseManager.getInstance().updateUser(player.getUser());
+                Gdx.input.setInputProcessor(null);
+                Timer.schedule(new Timer.Task() {
+                    @Override
+                    public void run() {
+                        Main.getMain().setScreen(new MainMenu());
+                    }
+                }, 0.5f);
+                Main.getMain().setScreen(new MainMenu());
+                return;
+            }
+
+            if(tryAgain.isPressed()) {
+                player.getUser().setKills(player.getUser().getKills() + player.getKills());
+                player.getUser().setScore(player.getUser().getScore() + ((int)gameTimer * player.getKills()));
+                player.getUser().setSurvive(player.getUser().getSurvive() + (int)gameTimer);
+                DatabaseManager.getInstance().updateUser(player.getUser());
+                Main.getMain().setScreen(new GameScreen(game));
+                return;
+            }
+        }
+
         if (paused) {
             Gdx.input.setCursorCatched(false);
             if(Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE) || resume.isPressed()) {
                 paused = false;
+            }
+
+            if(giveUp.isPressed()) {
+                lost = true;
             }
             return;
         }
@@ -297,33 +348,28 @@ public class GameScreen implements Screen {
 
         gameTimer += delta;
 
-        // Check win condition
         if (gameTimer >= GAME_DURATION) {
-            // Player survived! Show victory screen
-//            game.setScreen(new VictoryScreen(game)); TODO
+            win = true;
             return;
         }
 
-        // Update player
         player.update(delta);
 
-        // Handle input
         handleInput();
 
-        // Spawn enemies
         enemySpawner.update(delta, enemies, gameTimer, this);
 
-        // Update enemies
         for (int i = enemies.size() - 1; i >= 0; i--) {
             Enemy enemy = enemies.get(i);
             EnemyBullet newBullet = enemy.update(delta, player.getPosition());
 
             if (newBullet != null) {
-                enemyBullets.add(newBullet); // Add bullet to your bullet list
+                enemyBullets.add(newBullet);
             }
 
             if (enemy.isDead()) {
                 pickups.add(new Pickup(enemy.getPosition()));
+                player.setKills(player.getKills() + 1);
                 enemies.remove(i);
             }
         }
@@ -345,7 +391,6 @@ public class GameScreen implements Screen {
 
         playerGun.update(delta,player.getPosition(), currentShootDirection, autoAim, camera);
 
-        // Update bullets
         for (int i = bullets.size() - 1; i >= 0; i--) {
             Bullet bullet = bullets.get(i);
             if(bullets.get(i) == null){
@@ -362,32 +407,27 @@ public class GameScreen implements Screen {
             EnemyBullet bullet = enemyBullets.get(i);
             bullet.update(delta);
 
-            // Check if bullet hit player
             if (bullet.checkCollision(player.getPosition(), 16f)) {
                 player.takeDamage((int)bullet.getDamage());
                 bullet.deactivate();
             }
 
-            // Remove inactive bullets
             if (!bullet.isActive()) {
                 enemyBullets.remove(i);
             }
         }
 
-        // Update pickups
         for (int i = pickups.size() - 1; i >= 0; i--) {
             Pickup pickup = pickups.get(i);
         }
 
-        // Handle collisions
         collisionManager.checkCollisions(player , enemies, bullets, pickups);
 
-        // Check game over
         if (player.isDead()) {
-//            game.setScreen(new GameOverScreen(game, gameTimer)); TODO
+            lost = true;
+            return;
         }
 
-        // Update camera to follow player
         camera.position.set(player.getPosition().x, player.getPosition().y, 0);
         camera.update();
     }
@@ -458,11 +498,6 @@ public class GameScreen implements Screen {
             paused = !paused;
         }
 
-
-        if(giveUp.isPressed()){
-            // die TODO
-        }
-
         player.setMovement(movement);
     }
 
@@ -475,7 +510,7 @@ public class GameScreen implements Screen {
             if (distance < nearestDistance) {
                 nearestDistance = distance;
                 nearest = enemy;
-                if(autoAim && !paused && !ability){
+                if(autoAim && !(paused || ability || lost || win)){
                     Gdx.input.setCursorPosition((int)enemy.getPosition().x, (int)enemy.getPosition().y);
                 }
             }
@@ -494,7 +529,6 @@ public class GameScreen implements Screen {
 
         tileMap.render(batch,camera);
 
-        // Draw game objects
         player.draw(batch,40,65);
 
         for (Enemy enemy : enemies) {
@@ -520,11 +554,11 @@ public class GameScreen implements Screen {
             batch.draw(cursor,findNearestEnemy().getPosition().x,findNearestEnemy().getPosition().y);
         }
 
-        if (paused) {
+        if(win || lost){
+            drawEndGame(batch);
+        } else if (paused) {
             drawPauseOverlay(batch);
-        }
-
-        if(ability){
+        } else if(ability){
             drawAbility(batch);
         }
 
@@ -554,6 +588,14 @@ public class GameScreen implements Screen {
     public void dispose() {
         batch.dispose();
         tileMap.dispose();
+        stageEndGame.dispose();
+        stage.dispose();
+        stageAbility.dispose();
+//        if (Gdx.input.getInputProcessor() == stageEndGame ||
+//            Gdx.input.getInputProcessor() == stage ||
+//            Gdx.input.getInputProcessor() == stageAbility) {
+//            Gdx.input.setInputProcessor(null);
+//        }
     }
 
 
@@ -601,23 +643,18 @@ public class GameScreen implements Screen {
     private void drawPauseOverlay(SpriteBatch batch) {
         BitmapFont font = GameAssetManager.getSkin().getFont("font");
 
-        // Draw semi-transparent background
-        batch.setColor(0, 0, 0, 0.7f); // Semi-transparent black
-        // If you have a pause background texture:
-        // batch.draw(pauseBackground, camera.position.x - 400, camera.position.y - 200, 800, 400);
+        batch.setColor(0, 0, 0, 0.7f);
 
-        // Or draw a simple rectangle (you'll need to create a 1x1 white pixel texture for this)
-        Texture whitePixel = new Texture(Gdx.files.internal("Sprite/T_UIPanel.png")); // Create a 1x1 white image
+        Texture whitePixel = new Texture(Gdx.files.internal("Sprite/T_UIPanel.png"));
         batch.draw(whitePixel, camera.position.x - 400, camera.position.y - 200, 800, 400);
 
-        // Reset color
+
         batch.setColor(1, 1, 1, 1);
 
-        // Draw pause text
+
         font.setColor(Color.WHITE);
         font.getData().setScale(2f);
 
-        // Center the text
         String pauseText = "GAME PAUSED";
         font.draw(batch, pauseText, camera.position.x - 200, camera.position.y + 150);
 
@@ -626,14 +663,9 @@ public class GameScreen implements Screen {
 
 
     public void drawAbility(SpriteBatch batch) {
+        batch.setColor(0, 0, 0, 0.7f);
 
-        // Draw semi-transparent background
-        batch.setColor(0, 0, 0, 0.7f); // Semi-transparent black
-        // If you have a pause background texture:
-        // batch.draw(pauseBackground, camera.position.x - 400, camera.position.y - 200, 800, 400);
-
-        // Or draw a simple rectangle (you'll need to create a 1x1 white pixel texture for this)
-        Texture whitePixel = new Texture(Gdx.files.internal("Sprite/T_UIPanel.png")); // Create a 1x1 white image
+        Texture whitePixel = new Texture(Gdx.files.internal("Sprite/T_UIPanel.png"));
         batch.draw(whitePixel, camera.position.x - 200, camera.position.y - 200, 400, 600);
 
         // Reset color
@@ -660,6 +692,46 @@ public class GameScreen implements Screen {
 
         }
 
+    }
+
+    public void drawEndGame(SpriteBatch batch) {
+        batch.setColor(0, 0, 0, 0.7f);
+
+        Texture whitePixel = new Texture(Gdx.files.internal("Sprite/T_UIPanel.png"));
+        batch.draw(whitePixel, camera.position.x - 300, camera.position.y - 400, 600, 800);
+
+        batch.setColor(1, 1, 1, 1);
+
+        BitmapFont font = GameAssetManager.getSkin().getFont("font");
+        font.setColor(Color.WHITE);
+        font.getData().setScale(4f);
+
+        Label.LabelStyle style = new Label.LabelStyle();
+        style.font = font;
+
+        String title;
+
+        if(win){
+            title = "You won!";
+        } else {
+            title = "You Died!";
+        }
+        font.draw(batch, title, camera.position.x - 240, camera.position.y + 300);
+        font.getData().setScale(1.5f);
+
+        int minutes2 = (int)(gameTimer / 60);
+        int seconds2 = (int)(gameTimer % 60);
+
+        font.draw(batch, String.format("%s",player.getUser().getName()),
+            camera.position.x - 200, camera.position.y + 150);
+        font.draw(batch, String.format("Time Survived (%02d:%02d)", minutes2, seconds2)
+            ,camera.position.x - 200, camera.position.y + 100);
+        font.draw(batch, String.format("Enemies Killed           %d",
+            player.getKills()),camera.position.x - 200, camera.position.y + 50);
+        font.draw(batch, String.format("Points Earned           %d",
+            ((int)gameTimer * player.getKills())), camera.position.x - 200, camera.position.y);
+
+        Gdx.input.setInputProcessor(stageEndGame);
     }
 
     public static GameScreen getGameScreen() {

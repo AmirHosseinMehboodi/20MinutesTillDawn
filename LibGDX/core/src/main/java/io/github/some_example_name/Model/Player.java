@@ -22,6 +22,7 @@ public class Player {
     private int xp;
     private int level = 1;
     private int maxXpLevel = 20;
+    private int kills = 0;
 
     private float shootTimer = 0f;
     private float shootCooldown = 0.2f;
@@ -48,6 +49,7 @@ public class Player {
         this.health = health;
         this.speed = 100 * speed;
         this.maxHealth = health;
+        this.user = App.getCurrentUser();
 
         // Initialize animations
         initializeAnimations(textures);
@@ -243,5 +245,18 @@ public class Player {
 
     public void setIncreaseSpeed(float increaseSpeed) {
         this.increaseSpeed = increaseSpeed;
+    }
+
+    public int getKills() {
+        return kills;
+    }
+
+    public void setKills(int kills) {
+        this.kills = kills;
+    }
+
+
+    public User getUser() {
+        return user;
     }
 }

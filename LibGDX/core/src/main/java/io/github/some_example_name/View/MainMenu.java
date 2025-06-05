@@ -44,6 +44,8 @@ public class MainMenu implements Screen {
     private TextButton logout;
 
     public MainMenu() {
+        stage = new Stage(new FitViewport(1920, 1080));
+
         Skin skin = GameAssetManager.getSkin();
         this.backgroundLeft = new Image(new Texture(Gdx.files.internal("Texture2D/T_TitleLeaves.png")));
         backgroundLeft.setSize(Gdx.graphics.getWidth() / 3 - 30, Gdx.graphics.getHeight());
@@ -68,7 +70,6 @@ public class MainMenu implements Screen {
         profile = new TextButton("Profile", skin);
         hint = new TextButton("Hint", skin);
         logout = new TextButton("Logout", skin);
-
 
         Image image = new Image();
 
@@ -97,15 +98,11 @@ public class MainMenu implements Screen {
         this.backgroundAvatar = new Image(new Texture(Gdx.files.internal("Texture2D/T_UIPanel.png")));
         this.username = new Label(App.getCurrentUser().getName(), skin);
         this.score = new Label("score: " + App.getCurrentUser().getScore(), skin);
+
+        setupStage();
     }
 
-    @Override
-    public void show() {
-        startBlinkLoop();
-
-        stage = new Stage(new FitViewport(1920, 1080));
-        Gdx.input.setInputProcessor(stage);
-
+    private void setupStage() {
         stage.addActor(backgroundLeft);
         stage.addActor(backgroundRight);
         stage.addActor(backgroundTop);
@@ -153,10 +150,15 @@ public class MainMenu implements Screen {
         table2.add(username);
         table2.row();
 
-
         score.setColor(new Color(253/255f, 81/255f, 97/255f, 1f));
         table2.add(score);
         stage.addActor(table2);
+    }
+
+    @Override
+    public void show() {
+        Gdx.input.setInputProcessor(stage);
+        startBlinkLoop();
     }
 
     private void startBlinkLoop() {
@@ -169,30 +171,31 @@ public class MainMenu implements Screen {
     }
 
     private void blinkAnimation() {
-        eyeImage.setDrawable(new Image(semiCloseEyes).getDrawable());
+        if (eyeImage != null) {
+            eyeImage.setDrawable(new Image(semiCloseEyes).getDrawable());
 
-        Timer.schedule(new Timer.Task() {
-            @Override
-            public void run() {
-                eyeImage.setDrawable(new Image(closeEyes).getDrawable());
+            Timer.schedule(new Timer.Task() {
+                @Override
+                public void run() {
+                    eyeImage.setDrawable(new Image(closeEyes).getDrawable());
 
-                Timer.schedule(new Timer.Task() {
-                    @Override
-                    public void run() {
-                        eyeImage.setDrawable(new Image(semiCloseEyes).getDrawable());
+                    Timer.schedule(new Timer.Task() {
+                        @Override
+                        public void run() {
+                            eyeImage.setDrawable(new Image(semiCloseEyes).getDrawable());
 
-                        Timer.schedule(new Timer.Task() {
-                            @Override
-                            public void run() {
-                                eyeImage.setDrawable(new Image(openEyes).getDrawable());
-                            }
-                        }, 0.1f);
-                    }
-                }, 0.1f);
-            }
-        }, 0.1f);
+                            Timer.schedule(new Timer.Task() {
+                                @Override
+                                public void run() {
+                                    eyeImage.setDrawable(new Image(openEyes).getDrawable());
+                                }
+                            }, 0.1f);
+                        }
+                    }, 0.1f);
+                }
+            }, 0.1f);
+        }
     }
-
 
     @Override
     public void render(float v) {
@@ -209,7 +212,7 @@ public class MainMenu implements Screen {
 
     @Override
     public void resize(int i, int i1) {
-
+        stage.getViewport().update(i, i1, true);
     }
 
     @Override
@@ -224,12 +227,14 @@ public class MainMenu implements Screen {
 
     @Override
     public void hide() {
-
+        Gdx.input.setInputProcessor(null);
     }
 
     @Override
     public void dispose() {
-
+        if (stage != null) {
+            stage.dispose();
+        }
     }
 
     public TextButton getLogout() {
