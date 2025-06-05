@@ -48,6 +48,12 @@ public class Enemy {
                 damage = 1f;
                 shootCooldown = 2f;
                 break;
+            case ELDER:
+                speed = 50f;
+                health = maxHealth = 400;
+                damage = 2f;
+                shootCooldown = 0f;
+                break;
         }
 
         // Initialize animation

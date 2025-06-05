@@ -50,6 +50,10 @@ public class GameScreen implements Screen {
     private Texture cursor;
     Texture heartLost = new Texture(Gdx.files.internal("Sprite/HeartAnimation_3.png"));
     Texture heart = new Texture(Gdx.files.internal("Sprite/HeartAnimation_0.png"));
+    private Elder elder;
+    private Barrier barrier;
+    private boolean elderSpawned = false;
+    private float barrierDamageTimer = 0f;
 
     private TextButton resume = new TextButton("Resume", GameAssetManager.getSkin());
     private TextButton giveUp = new TextButton("Give Up", GameAssetManager.getSkin());
@@ -78,6 +82,8 @@ public class GameScreen implements Screen {
         this.game = game;
         cursor  = new Texture(Gdx.files.internal("Sprite/T_CursorSprite.png"));
         GAME_DURATION = game.getTime() * 60;
+        elder = null;
+        barrier = null;
 
         // Setup camera and viewport
         camera = new OrthographicCamera();
@@ -271,7 +277,6 @@ public class GameScreen implements Screen {
                     }
                 }, 0.5f);
                 Main.getMain().setScreen(new MainMenu());
-                return;
             }
 
             if(tryAgain.isPressed()) {
@@ -280,8 +285,8 @@ public class GameScreen implements Screen {
                 player.getUser().setSurvive(player.getUser().getSurvive() + (int)gameTimer);
                 DatabaseManager.getInstance().updateUser(player.getUser());
                 Main.getMain().setScreen(new GameScreen(game));
-                return;
             }
+            return;
         }
 
         if (paused) {
@@ -375,6 +380,11 @@ public class GameScreen implements Screen {
             }
         }
 
+        if (!elderSpawned && gameTimer >= GAME_DURATION / 2) {
+            spawnElder();
+            elderSpawned = true;
+        }
+
         if (!enemies.isEmpty()) {
             Enemy nearest = findNearestEnemy();
             if (nearest != null) {
@@ -404,6 +414,7 @@ public class GameScreen implements Screen {
             }
         }
 
+
         for (int i = enemyBullets.size() - 1; i >= 0; i--) {
             EnemyBullet bullet = enemyBullets.get(i);
             bullet.update(delta);
@@ -423,6 +434,45 @@ public class GameScreen implements Screen {
         }
 
         collisionManager.checkCollisions(player , enemies, bullets, pickups);
+        if (barrier != null && barrier.isActive()) {
+            barrier.update(delta);
+
+            if (barrier.checkCollision(player.getPosition())) {
+                barrierDamageTimer += delta;
+                if (barrierDamageTimer >= 1f) {
+                    player.takeDamage((int)barrier.getDamage());
+                    barrierDamageTimer = 0f;
+                }
+            } else {
+                barrierDamageTimer = 0f;
+            }
+        }
+        if (elder != null && !elder.isDead()) {
+            elder.update(delta, player.getPosition());
+
+            // Check collision between player and elder
+            if (player.getPosition().dst(elder.getPosition()) < 50f) {
+                player.takeDamage(1);
+            }
+
+            // Check collision between bullets and elder
+            for (int i = bullets.size() - 1; i >= 0; i--) {
+                Bullet bullet = bullets.get(i);
+                if (elder.getPosition().dst(bullet.getPosition()) < 40f) {
+                    elder.takeDamage(bullet.getDamage());
+                    bullets.remove(i);
+
+                    if (elder.isDead()) {
+                        if (barrier != null) {
+                            barrier.deactivate();
+                        }
+                        player.setKills(player.getKills() + 100); // Big bonus for boss
+                        elder = null;
+                        break;
+                    }
+                }
+            }
+        }
 
         if (player.isDead()) {
             lost = true;
@@ -525,7 +575,11 @@ public class GameScreen implements Screen {
         Enemy nearest = null;
         float nearestDistance = Float.MAX_VALUE;
 
-        for (Enemy enemy : enemies) {
+        ArrayList<Enemy> plus = new ArrayList<>(enemies);
+        if(elder != null){
+            plus.add(elder);
+        }
+        for (Enemy enemy : plus) {
             float distance = player.getPosition().dst(enemy.getPosition());
             if (distance < nearestDistance) {
                 nearestDistance = distance;
@@ -562,6 +616,15 @@ public class GameScreen implements Screen {
             bullet.draw(batch);
         }
 
+        if (elder != null && !elder.isDead()) {
+            elder.draw(batch);
+        }
+
+        if (barrier != null && barrier.isActive()) {
+            barrier.draw(batch);
+        }
+
+
         for (Bullet bullet : bullets) {
             bullet.draw(batch);
         }
@@ -573,6 +636,7 @@ public class GameScreen implements Screen {
         if(autoAim && findNearestEnemy() != null){
             batch.draw(cursor,findNearestEnemy().getPosition().x,findNearestEnemy().getPosition().y);
         }
+
 
         if(win || lost){
             drawEndGame(batch);
@@ -752,6 +816,23 @@ public class GameScreen implements Screen {
             ((int)gameTimer * player.getKills())), camera.position.x - 200, camera.position.y);
 
         Gdx.input.setInputProcessor(stageEndGame);
+    }
+
+
+    private void spawnElder() {
+        // Spawn elder at a random position around the player
+        float spawnDistance = 400f;
+        float angle = (float)(Math.random() * 360);
+        float x = player.getPosition().x + (float)Math.cos(Math.toRadians(angle)) * spawnDistance;
+        float y = player.getPosition().y + (float)Math.sin(Math.toRadians(angle)) * spawnDistance;
+
+        elder = new Elder(x, y);
+
+        Vector2 barrierCenter = new Vector2(camera.position.x, camera.position.y);
+        float initialRadius = Math.max(viewport.getWorldWidth(), viewport.getWorldHeight()) / 2f;
+        float shrinkRate = initialRadius / (GAME_DURATION / 2f);
+
+        barrier = new Barrier(barrierCenter, initialRadius, shrinkRate);
     }
 
     public static GameScreen getGameScreen() {
