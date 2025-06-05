@@ -343,15 +343,16 @@ public class GameScreen implements Screen {
             return;
         }
 
+        if (gameTimer >= GAME_DURATION) {
+            win = true;
+            return;
+        }
+
         Gdx.input.setCursorCatched(autoAim);
 
 
         gameTimer += delta;
 
-        if (gameTimer >= GAME_DURATION) {
-            win = true;
-            return;
-        }
 
         player.update(delta);
 
@@ -494,6 +495,25 @@ public class GameScreen implements Screen {
             }
         }
 
+        if(Gdx.input.isKeyJustPressed(Input.Keys.T)){
+            gameTimer += 60;
+        }
+
+        if(Gdx.input.isKeyJustPressed(Input.Keys.L)){
+            player.setXp(player.getXp() + player.getLevel() * 20);
+            ability = true;
+        }
+
+        if(Gdx.input.isKeyJustPressed(Input.Keys.H)){
+            if(player.getHealth() < player.getMaxHealth()){
+                player.setHealth(1);
+            }
+        }
+
+        if(Gdx.input.isKeyJustPressed(Input.Keys.P)){
+            playerGun.setProjectile(1);
+        }
+
         if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
             paused = !paused;
         }
@@ -510,7 +530,7 @@ public class GameScreen implements Screen {
             if (distance < nearestDistance) {
                 nearestDistance = distance;
                 nearest = enemy;
-                if(autoAim && !(paused || ability || lost || win)){
+                if(autoAim && !paused && !ability && !lost && !win){
                     Gdx.input.setCursorPosition((int)enemy.getPosition().x, (int)enemy.getPosition().y);
                 }
             }

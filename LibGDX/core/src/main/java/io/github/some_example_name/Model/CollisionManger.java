@@ -28,7 +28,6 @@ public class CollisionManger {
         for (Enemy enemy : enemies) {
             if (player.getPosition().dst(enemy.getPosition()) < COLLISION_DISTANCE) {
                 player.takeDamage((int)enemy.getDamage());
-                // Optionally push player away or add invincibility frames
             }
         }
 

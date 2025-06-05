@@ -78,21 +78,16 @@ public class Player {
     }
 
     public void update(float delta) {
-        // Update state time for animations
         stateTime += delta;
 
-        // Check if player is moving
         isMoving = movement.len() > 0;
 
-        // Update facing direction based on horizontal movement
         if (movement.x < 0) {
             facingLeft = true;
         } else if (movement.x > 0) {
             facingLeft = false;
         }
-        // If only moving vertically, keep the current facing direction
 
-        // Update position
         if (isMoving) {
             Vector2 vel;
             if(increaseSpeed > 0){
@@ -108,7 +103,6 @@ public class Player {
         }
 
 
-        // Update timers
         shootTimer -= delta;
 
         if(increaseSpeed > 0){
@@ -135,13 +129,11 @@ public class Player {
                 // Fire straight with no spread
                 shot.add(new Bullet(new Vector2(gun.getPosition()), new Vector2(direction).nor(), bulletSpeed, gun.getDamage(), range));
             } else {
-                // Spread angle in degrees
                 float spreadAngle = 20f;
 
-                // Angle between each bullet
+
                 float angleStep = spreadAngle / (projectileCount - 1);
 
-                // Convert base direction to angle
                 float baseAngle = direction.angleDeg();
 
                 for (int i = 0; i < projectileCount; i++) {
@@ -163,7 +155,7 @@ public class Player {
         if (damageCooldown <= 0f) {
             health -= damage;
             if (health < 0) health = 0;
-            damageCooldown = INVINCIBILITY_DURATION; // start cooldown
+            damageCooldown = INVINCIBILITY_DURATION;
         }
     }
 
@@ -173,7 +165,6 @@ public class Player {
         maxHealth += amount;
     }
 
-    // Alternative draw method if you want to specify size
     public void draw(SpriteBatch batch, float width, float height) {
         TextureRegion currentFrame;
 
@@ -184,7 +175,7 @@ public class Player {
             currentFrame = idleAnimation.getKeyFrame(stateTime);
         }
 
-        // Create a copy of the texture region to avoid modifying the original
+
         TextureRegion frameToRender = new TextureRegion(currentFrame);
 
         // Flip horizontally if facing left and moving
@@ -204,12 +195,6 @@ public class Player {
                 width, height);
     }
 
-    // Method to reset animation state (useful when switching between animations)
-    public void resetAnimation() {
-        stateTime = 0f;
-    }
-
-    // Getters
     public Vector2 getPosition() { return position; }
     public boolean isDead() { return health <= 0; }
     public int getHealth() { return health; }
@@ -255,6 +240,13 @@ public class Player {
         this.kills = kills;
     }
 
+    public void setXp(int xp) {
+        this.xp = xp;
+    }
+
+    public void setHealth(int health) {
+        this.health += health;
+    }
 
     public User getUser() {
         return user;
